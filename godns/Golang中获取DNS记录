@@ -1,0 +1,72 @@
+使用Golang获取域名的DNS记录, 包括A / CNAME等类型.
+
+方案1: 官方net包
+只举例获取CNAME类型的解析记录, 其他类型大同小异.
+
+func CNAME(src string) (dst string, err error) {
+    dst, err = net.LookupCNAME(src)
+    return
+}
+官方net包调用的是系统API, 所以在不同的系统上可能有不同的结果, 我测试当一个域名的解析记录如下时, linux和windows返回的结果不一致.
+
+bysir.xyz.           297     IN      CNAME   blog.bysir.top.
+blog.bysir.top.      60      IN      CNAME   bysir.top.
+bysir.top.           60      IN      A       78.178.25.149
+windows下 net.LookupCNAME 会返回第一层cname, 即 blog.bysir.top. , linux下会返回第二层cname, 即 bysir.top. .
+
+而如果你想获取完整的解析记录, 或者是精确的第一层cname就需要用到下述的第二种方案了.
+
+方案2: github.com/miekg/dns包
+// CNAME2 返回所有层的cname
+// src: 域名
+// dnsService: dns服务器, 如114.114.114.114
+func CNAME2(src string, dnsService string) (dst []string, err error) {
+    c := dns.Client{
+        Timeout: 5 * time.Second,
+    }
+
+    var lastErr error
+    // retry 3 times
+    for i := 0; i < 3; i++ {
+        m := dns.Msg{}
+        // 最终都会指向一个ip 也就是typeA, 这样就可以返回所有层的cname.
+        m.SetQuestion(src+".", dns.TypeA)
+        r, _, err := c.Exchange(&m, dnsService+":53")
+        if err != nil {
+            lastErr = err
+            time.Sleep(1 * time.Second * time.Duration(i+1))
+            continue
+        }
+
+        dst = []string{}
+        for _, ans := range r.Answer {
+            record, isType := ans.(*dns.CNAME)
+            if isType {
+                dst = append(dst, record.Target)
+            }
+        }
+        lastErr = nil
+        break
+    }
+
+    err = lastErr
+
+    return
+}
+
+
+Go里面的DNSclient没有带任何的缓存，语言层面没有任何的缓存，但是我们可以通过下面这样的代码来
+
+```
+http.DefaultClient.Transport = &http.Transport {
+MaxIdleConnsPerHost: 64,
+Dial: func(network string, address string) (net.Conn, error) {
+separator := strings.LastIndex(address, ":")
+ip, _ := dnscache.FetchString(address[:separator])
+return net.Dial("tcp", ip + address[separator:])
+},
+}
+```
+
+这样当我们调用http.Client的时候就会采用这个缓存的ip了，里面用到的dnscache是这个包
+https://github.com/viki-org/dnscache

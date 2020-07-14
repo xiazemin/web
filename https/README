@@ -1,0 +1,41 @@
+$ go run main.go
+open server.crt: no such file or directory
+close
+
+
+$ openssl genrsa -out server.key 2048
+Generating RSA private key, 2048 bit long modulus
+........+++
+...................+++
+e is 65537 (0x10001)
+
+
+$ openssl req -new -x509 -key server.key -out server.crt -days 3650
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:CN
+State or Province Name (full name) [Some-State]:BJ
+Locality Name (eg, city) []:BJ
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:DD
+Organizational Unit Name (eg, section) []:DD
+Common Name (e.g. server FQDN or YOUR name) []:xiazemin
+Email Address []:465474307@qq.com
+
+$ ls
+README          log.txt         m               main.go         server.crt      server.key
+
+$ go run main.go
+2019/07/14 17:07:06 http: TLS handshake error from 127.0.0.1:62772: remote error: tls: unknown certificate
+2019/07/14 17:07:06 http: TLS handshake error from 127.0.0.1:62773: remote error: tls: unknown certificate
+^Csignal: interrupt
+
+
+
+
+https://127.0.0.1:8081/
+“您的连接不是私密连接”，忽略

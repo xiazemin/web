@@ -1,0 +1,22 @@
+curl -i http://127.0.0.1:8888/
+Status: 200 OK
+Content-Length: 67
+Content-Type: text/html; charset=utf-8
+Date: Fri, 05 Jul 2019 02:58:06 GMT
+
+<html><head>Hello, fastcgi</head><body>Hello, fastcgi</body></html>
+
+但是浏览器显示无法连接
+
+
+$curl -i http://127.0.0.1:8888/
+HTTP/1.1 200 OK
+Status: 200 OK
+Content-Length: 67
+Content-Type: text/html; charset=utf-8
+Date: Fri, 05 Jul 2019 03:06:17 GMT
+
+<html><head>Hello, fastcgi</head><body>Hello, fastcgi</body></html>
+
+
+对比发现http 头不对,没有http 版本和状态信息,加上即可

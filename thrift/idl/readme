@@ -1,0 +1,8 @@
+ thrift -out .. --gen go example.thrift，就会在 thrift_file 的同级目录下生成 golang 的包：example，其中 format_data-remote 是生成的测试代码可以不用特别关注
+
+ To generate the source from a Thrift file run
+
+ thrift --gen <language> <Thrift filename>
+ To recursivly generate source code from a Thrift file and all other Thrift files included by it, run
+
+ thrift -r --gen <language> <Thrift filename>

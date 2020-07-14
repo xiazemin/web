@@ -1,0 +1,54 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="wasm_exec.js"></script>
+    <script>
+        let goMemArr, fileType
+
+        let setImageToElem = (elemId, dateArr) => {
+            document.getElementById(elemId).src = URL.createObjectURL(
+                    new Blob([dateArr], {"type": fileType}))
+        }
+
+        window.setFileArrCb = (fileArr, ptr) => {
+            goMemArr.set(fileArr, ptr)
+        }
+        window.setImageToHueCb = (ptr, len) => {
+            setImageToElem("img-hue", goMemArr.slice(ptr, ptr + len))
+        }
+        window.goFuncs = {}
+
+        const go = new Go()
+        WebAssembly.instantiateStreaming(fetch("go_main.wasm"), go.importObject).
+        then(res => {
+            goMemArr = new Uint8Array(res.instance.exports.mem.buffer)
+        go.run(res.instance)
+        }
+        )
+
+        let onFileSelected = event => {
+            let reader = new FileReader()
+            let file = event.target.files[0]
+            fileType = file.type
+            reader.onload = event => {
+                let fileArr = new Uint8Array(event.target.result)
+                setImageToElem("img-ori", fileArr)
+                window.goFuncs.setFile(fileArr, fileArr.length)
+            }
+            reader.readAsArrayBuffer(file)
+        }
+
+        window.onload = () => {
+            document.getElementById("file-input").addEventListener("change", onFileSelected)
+        }
+    </script>
+</head>
+
+<body>
+<input id="file-input" type="file" />
+<br />
+<image id="img-ori" />
+<br />
+<image id="img-hue" />
+</body>
+</html>

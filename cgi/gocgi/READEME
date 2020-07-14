@@ -1,0 +1,27 @@
+ go build -o ng server.go
+
+ ./ng
+http://127.0.0.1:8086/cgi/testcgi.go
+
+ CGI error: fork/exec /Users/didi/goLang/src/github.com/xiazemin/cgi/gocgi/cgi: permission denied
+
+ 我们聚焦在 go run 的输出结果上，发现它是一个临时文件的地址，这是为什么呢？
+
+ 在go help run中，我们可以看到
+
+ Run compiles and runs the main package comprising the named Go source files.
+ A Go source file is defined to be a file ending in a literal ".go" suffix.
+ 也就是 go run 执行时会将文件放到 /tmp/go-build... 目录下，编译并运行
+
+ 因此go run main.go出现/tmp/go-build962610262/b001/exe结果也不奇怪了，因为它已经跑到临时目录下去执行可执行文件了
+
+ go build -o cgibin testcgi.go
+
+ chmod 755  /Users/didi/goLang/src/github.com/xiazemin/cgi/gocgi/cgi/cgibin
+
+ path 不对
+
+ 需要将 path设置成go安装目录
+ 	handler.Path = "/usr/local/go/bin/go"
+
+ 	http://localhost:8086/testcgi.go

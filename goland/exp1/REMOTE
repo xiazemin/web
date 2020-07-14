@@ -1,0 +1,25 @@
+ ./xiazemin &
+
+ $ dlv attach 44642 --headless --listen=:7008 --api-version=2 --accept-multiclient
+ API server listening at: 0.0.0.0:7008
+
+$dlv connect 10.179.21.231:7008
+Type 'help' for list of commands.
+
+(dlv) b main.hi
+Breakpoint 1 set at 0x660b78 for main.hi() /home/xiaoju/main.go:19
+(dlv) c
+> main.hi() /home/xiaoju/main.go:19 (hits goroutine(19):1 total:1) (PC: 0x660b78)
+(dlv) c
+> main.hi() /home/xiaoju/main.go:19 (hits goroutine(34):1 total:2) (PC: 0x660b78)
+(dlv) info
+Command failed: command not available
+(dlv) args
+w = net/http.ResponseWriter(*net/http.response) 0xc0000a9b98
+r = ("*net/http.Request")(0xc00015a200)
+(dlv)
+
+
+curl http://10.179.21.231:8129/hi
+
+

@@ -1,0 +1,157 @@
+客户端读取文件test.txt内容发送到服务端，服务端把接收到的文件内容保存在test_1.txt文件中。我们模拟断点续传的方式是：
+
+第一次先发送test.txt文件内容到服务端
+
+修改test.txt文件，加一些内容
+
+再次运行server socket以及client socket，观察客户端是不是只发送新增的文件内容到服务端
+
+# 假设我的test.txt文件有以下内容
+$ cat test.txt
+hello golang.
+
+# 先运行server socket再运行client socket（分别在两个终端窗口运行）
+$ go run server.go
+$ go run client.go
+
+# 服务端会输出以下内容
+2018/04/05 23:37:13 waiting accept.
+2018/04/05 23:37:15 recevice 8 bytes, content is 【start-->】
+2018/04/05 23:37:15 file size: 0
+2018/04/05 23:37:15 recevice 10 bytes, content is 【hello gola】
+2018/04/05 23:37:15 append content: 【hello gola】 success
+2018/04/05 23:37:15 recevice 2 bytes, content is 【n.】
+2018/04/05 23:37:15 append content: 【n.】 success
+2018/04/05 23:37:16 recevice 6 bytes, content is 【<--end】
+2018/04/05 23:37:16 receive over
+exit status 1
+
+# 客户端会输出如下内容
+2018/04/05 23:37:15 send 【start-->】 content success
+2018/04/05 23:37:15 read file at seek: 0
+2018/04/05 23:37:15 send 【hello gola】 content success
+2018/04/05 23:37:15 send 【n.】 content success
+2018/04/05 23:37:16 send 【<--end】 content success
+2018/04/05 23:37:16 send all content, now quit
+
+# 这时候我们看看test_1.txt内容跟test.txt完全一致
+$ cat test_1.txt
+hello golan.
+
+# ------- 模拟断点续传 ----------
+# 现在我们往test.txt追加内容: hello python.
+$ cat test.txt
+hello golang.
+hello python.
+
+# 我们再一次运行server socket 和 client socket(分别在两个终端窗口运行）
+$ go run server.go
+$ go run client.go
+
+# 服务端会输出以下内容
+2018/04/05 23:44:31 waiting accept.
+2018/04/05 23:44:34 recevice 8 bytes, content is 【start-->】
+2018/04/05 23:44:34 file size: 12
+2018/04/05 23:44:34 recevice 10 bytes, content is 【
+hello pyt】
+2018/04/05 23:44:34 append content: 【
+hello pyt】 success
+2018/04/05 23:44:34 recevice 4 bytes, content is 【hon.】
+2018/04/05 23:44:34 append content: 【hon.】 success
+2018/04/05 23:44:35 recevice 6 bytes, content is 【<--end】
+2018/04/05 23:44:35 receive over
+exit status 1
+# 服务端在接收到客户端发送的 start--> 信息后会获取上次接收到文件内容位置，并通知客户端（这里file size 是12）
+
+# 客户端会输出以下内容
+2018/04/05 23:44:34 send 【start-->】 content success
+2018/04/05 23:44:34 read file at seek: 12
+2018/04/05 23:44:34 send 【
+hello pyt】 content success
+2018/04/05 23:44:34 send 【hon.】 content success
+2018/04/05 23:44:35 send 【<--end】 content success
+2018/04/05 23:44:35 send all content, now quit
+# 我们客户端获取到了服务端返回的文件位置，通过 Seek 来指定从哪里开始读取文件
+# 通过日志可以看到我们客户端只发送了后面追加的内容: hello python. 到服务端
+
+# 我们看看此时test_1.txt文件的内容是否跟test.txt一致
+$ cat test_1.txt
+hello golang.
+hello python.
+
+
+
+
+https://github.com/artificerpi/oget
+HTTP Range 请求
+HTTP Range请求允许服务器向客户端发送HTTP消息体的一部分数据。Partial Requests在使用比较大的网络媒体文件或者在下载文件时提供暂停和恢复功能时很有用。
+这也是下载时实现HTTP断点续传的一个关键。
+
+HTTP 206 (Partial Content)
+如果服务器能返回HTTP 206请求，我们就知道它能够支持Range request.
+
+# curl -I https://www.baidu.com/ -H "Range: bytes=0-"
+
+HTTP/1.1 206 Partial Content
+Cache-Control: private, no-cache, no-store, proxy-revalidate, no-transform
+Connection: Keep-Alive
+Content-Length: 277
+Content-Range: bytes 0-276/277
+Content-Type: text/html
+Date: Mon, 25 Dec 2017 15:29:35 GMT
+Etag: "575e1f71-115"
+Last-Modified: Mon, 13 Jun 2016 02:50:25 GMT
+Pragma: no-cache
+Server: bfe/1.0.8.18
+go代码
+
+    req, err := http.NewRequest(http.MethodHead, f.URL, nil)
+if err != nil {
+    log.Fatalf("Invalid url for downloading: %s, error: %v", f.URL, err)
+}
+req.Header.Set("Range", "bytes=0-")
+
+client := &http.Client{
+    Timeout: time.Second * 5,
+}
+resp, err := client.Do(req)
+if err != nil {
+    log.Fatal(err)
+}
+defer resp.Body.Close()
+
+    switch resp.StatusCode {
+case http.StatusPartialContent:
+    rangeSatisfiable = true
+    log.Println("Partial Content is supported.")
+case http.StatusOK, http.StatusRequestedRangeNotSatisfiable:
+    log.Println(f.URL, "does not support for range request.")
+default:
+    log.Fatal("Got unexpected status code", resp.StatusCode)
+    return
+}
+Range 请求头
+我们可以使用Range请求头，告诉服务器应该返回给客户端的内容部分。
+
+# 通常<unit>为 bytes
+Range: <unit>=<range-start>-
+Range: <unit>=<range-start>-<range-end>
+Range: <unit>=<range-start>-<range-end>, <range-start>-<range-end>
+Range: <unit>=<range-start>-<range-end>, <range-start>-<range-end>, <range-start>-<range-end>
+代码实现
+
+    req, err := http.NewRequest(http.MethodGet, f.URL, nil)
+if err != nil {
+    return
+}
+    // s.String()实现:  fmt.Sprintf("bytes=%d-%d", h.StartPos, h.EndPos)
+req.Header.Set("Range", s.String())
+
+client := &http.Client{}
+resp, err := client.Do(req)
+if err != nil {
+    return
+}
+defer resp.Body.Close()
+
+data, err := ioutil.ReadAll(resp.Body)

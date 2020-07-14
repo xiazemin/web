@@ -1,0 +1,237 @@
+
+14:51:13-didi@didideMacBook-Air-42:~/goLang/src/github.com/xiazemin/goland$netstat -anL |grep 8000
+0/0/128        *.8000
+14:51:19-didi@didideMacBook-Air-42:~/goLang/src/github.com/xiazemin/goland$lsof -i tcp:8000
+COMMAND   PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+debug   29959 didi    6u  IPv6 0xf6b535639d8f019f      0t0  TCP *:irdmi (LISTEN)
+14:52:05-didi@didideMacBook-Air-42:~/goLang/src/github.com/xiazemin/goland$kill -9 29959
+
+
+
+didideMacBook-Air-42:exp1 didi$
+didideMacBook-Air-42:exp1 didi$ dlv debug ./main.go
+Type 'help' for list of commands.
+(dlv) b main.main
+Breakpoint 1 set at 0x1356f68 for main.main() ./main.go:12
+(dlv) c
+> main.main() ./main.go:12 (hits goroutine(1):1 total:1) (PC: 0x1356f68)
+     7:         "os"
+     8: )
+     9:
+    10: const port = "8000"
+    11:
+=>  12: func main() {
+    13:         http.HandleFunc("/hi", hi)
+    14:
+    15:         fmt.Println("runing on port: " + port)
+    16:         log.Fatal(http.ListenAndServe(":"+port, nil))
+    17: }
+(dlv) b main.hi
+Breakpoint 2 set at 0x1357108 for main.hi() ./main.go:19
+(dlv) b main.hi
+Command failed: Breakpoint exists at /Users/didi/goLang/src/github.com/xiazemin/goland/exp1/main.go:19 at 1357108
+(dlv)
+Command failed: Breakpoint exists at /Users/didi/goLang/src/github.com/xiazemin/goland/exp1/main.go:19 at 1357108
+(dlv)
+Command failed: Breakpoint exists at /Users/didi/goLang/src/github.com/xiazemin/goland/exp1/main.go:19 at 1357108
+(dlv)
+Command failed: Breakpoint exists at /Users/didi/goLang/src/github.com/xiazemin/goland/exp1/main.go:19 at 1357108
+(dlv) c
+runing on port: 8000
+2020/04/10 14:50:11 listen tcp :8000: bind: address already in use
+Process 45142 has exited with status 1
+(dlv) c
+Process 45142 has exited with status 0
+(dlv) exit
+didideMacBook-Air-42:exp1 didi$
+
+
+
+
+
+curl localhost:8000/hi
+
+
+
+didideMacBook-Air-42:exp1 didi$ dlv debug ./main.go
+Type 'help' for list of commands.
+(dlv) b main.main
+Breakpoint 1 set at 0x1356f68 for main.main() ./main.go:12
+(dlv) b main.hi
+Breakpoint 2 set at 0x1357108 for main.hi() ./main.go:19
+(dlv) c
+> main.main() ./main.go:12 (hits goroutine(1):1 total:1) (PC: 0x1356f68)
+     7:         "os"
+     8: )
+     9:
+    10: const port = "8000"
+    11:
+=>  12: func main() {
+    13:         http.HandleFunc("/hi", hi)
+    14:
+    15:         fmt.Println("runing on port: " + port)
+    16:         log.Fatal(http.ListenAndServe(":"+port, nil))
+    17: }
+(dlv) c
+runing on port: 8000
+> main.hi() ./main.go:19 (hits goroutine(19):1 total:1) (PC: 0x1357108)
+    14:
+    15:         fmt.Println("runing on port: " + port)
+    16:         log.Fatal(http.ListenAndServe(":"+port, nil))
+    17: }
+    18:
+=>  19: func hi(w http.ResponseWriter, r *http.Request) {
+    20:         hostName, _ := os.Hostname()
+    21:         fmt.Fprintf(w, "HostName: %s", hostName)
+    22: }
+(dlv) s
+> main.hi() ./main.go:20 (PC: 0x135711f)
+    15:         fmt.Println("runing on port: " + port)
+    16:         log.Fatal(http.ListenAndServe(":"+port, nil))
+    17: }
+    18:
+    19: func hi(w http.ResponseWriter, r *http.Request) {
+=>  20:         hostName, _ := os.Hostname()
+    21:         fmt.Fprintf(w, "HostName: %s", hostName)
+    22: }
+(dlv) s
+> os.Hostname() /usr/local/go/src/os/sys.go:8 (PC: 0x10dda33)
+     3: // license that can be found in the LICENSE file.
+     4:
+     5: package os
+     6:
+     7: // Hostname returns the host name reported by the kernel.
+=>   8: func Hostname() (name string, err error) {
+     9:         return hostname()
+    10: }
+(dlv) s
+> os.Hostname() /usr/local/go/src/os/sys.go:9 (PC: 0x10dda54)
+     4:
+     5: package os
+     6:
+     7: // Hostname returns the host name reported by the kernel.
+     8: func Hostname() (name string, err error) {
+=>   9:         return hostname()
+    10: }
+(dlv) s
+> os.hostname() /usr/local/go/src/os/sys_bsd.go:11 (PC: 0x10ddb13)
+     6:
+     7: package os
+     8:
+     9: import "syscall"
+    10:
+=>  11: func hostname() (name string, err error) {
+    12:         name, err = syscall.Sysctl("kern.hostname")
+    13:         if err != nil {
+    14:                 return "", NewSyscallError("sysctl kern.hostname", err)
+    15:         }
+    16:         return name, nil
+(dlv) s
+> os.hostname() /usr/local/go/src/os/sys_bsd.go:12 (PC: 0x10ddb31)
+     7: package os
+     8:
+     9: import "syscall"
+    10:
+    11: func hostname() (name string, err error) {
+=>  12:         name, err = syscall.Sysctl("kern.hostname")
+    13:         if err != nil {
+    14:                 return "", NewSyscallError("sysctl kern.hostname", err)
+    15:         }
+    16:         return name, nil
+    17: }
+(dlv) s
+> syscall.Sysctl() /usr/local/go/src/syscall/syscall_bsd.go:450 (PC: 0x10b36b8)
+   445:                 event = unsafe.Pointer(&events[0])
+   446:         }
+   447:         return kevent(kq, change, len(changes), event, len(events), timeout)
+   448: }
+   449:
+=> 450: func Sysctl(name string) (value string, err error) {
+   451:         // Translate name to mib number.
+   452:         mib, err := nametomib(name)
+   453:         if err != nil {
+   454:                 return "", err
+   455:         }
+(dlv) s
+> syscall.Sysctl() /usr/local/go/src/syscall/syscall_bsd.go:452 (PC: 0x10b36e5)
+   447:         return kevent(kq, change, len(changes), event, len(events), timeout)
+   448: }
+   449:
+   450: func Sysctl(name string) (value string, err error) {
+   451:         // Translate name to mib number.
+=> 452:         mib, err := nametomib(name)
+   453:         if err != nil {
+   454:                 return "", err
+   455:         }
+   456:
+   457:         // Find size.
+(dlv) s
+> syscall.nametomib() /usr/local/go/src/syscall/syscall_darwin.go:51 (PC: 0x10b4138)
+    46:         Data   [12]int8
+    47:         raw    RawSockaddrDatalink
+    48: }
+    49:
+    50: // Translate "kern.hostname" to []_C_int{0,1,2,3}.
+=>  51: func nametomib(name string) (mib []_C_int, err error) {
+    52:         const siz = unsafe.Sizeof(mib[0])
+    53:
+    54:         // NOTE(rsc): It seems strange to set the buffer to have
+    55:         // size CTL_MAXNAME+2 but use only CTL_MAXNAME
+    56:         // as the size. I don't know why the +2 is here, but the
+(dlv) s
+> syscall.nametomib() /usr/local/go/src/syscall/syscall_darwin.go:61 (PC: 0x10b4171)
+    56:         // as the size. I don't know why the +2 is here, but the
+    57:         // kernel uses +2 for its own implementation of this function.
+    58:         // I am scared that if we don't include the +2 here, the kernel
+    59:         // will silently write 2 words farther than we specify
+    60:         // and we'll get memory corruption.
+=>  61:         var buf [CTL_MAXNAME + 2]_C_int
+    62:         n := uintptr(CTL_MAXNAME) * siz
+    63:
+    64:         p := (*byte)(unsafe.Pointer(&buf[0]))
+    65:         bytes, err := ByteSliceFromString(name)
+    66:         if err != nil {
+(dlv) s
+> syscall.nametomib() /usr/local/go/src/syscall/syscall_darwin.go:62 (PC: 0x10b41aa)
+    57:         // kernel uses +2 for its own implementation of this function.
+    58:         // I am scared that if we don't include the +2 here, the kernel
+    59:         // will silently write 2 words farther than we specify
+    60:         // and we'll get memory corruption.
+    61:         var buf [CTL_MAXNAME + 2]_C_int
+=>  62:         n := uintptr(CTL_MAXNAME) * siz
+    63:
+    64:         p := (*byte)(unsafe.Pointer(&buf[0]))
+    65:         bytes, err := ByteSliceFromString(name)
+    66:         if err != nil {
+    67:                 return nil, err
+(dlv) s
+> syscall.nametomib() /usr/local/go/src/syscall/syscall_darwin.go:64 (PC: 0x10b41b3)
+    59:         // will silently write 2 words farther than we specify
+    60:         // and we'll get memory corruption.
+    61:         var buf [CTL_MAXNAME + 2]_C_int
+    62:         n := uintptr(CTL_MAXNAME) * siz
+    63:
+=>  64:         p := (*byte)(unsafe.Pointer(&buf[0]))
+    65:         bytes, err := ByteSliceFromString(name)
+    66:         if err != nil {
+    67:                 return nil, err
+    68:         }
+    69:
+(dlv) s
+> syscall.nametomib() /usr/local/go/src/syscall/syscall_darwin.go:65 (PC: 0x10b41c0)
+    60:         // and we'll get memory corruption.
+    61:         var buf [CTL_MAXNAME + 2]_C_int
+    62:         n := uintptr(CTL_MAXNAME) * siz
+    63:
+    64:         p := (*byte)(unsafe.Pointer(&buf[0]))
+=>  65:         bytes, err := ByteSliceFromString(name)
+    66:         if err != nil {
+    67:                 return nil, err
+    68:         }
+    69:
+    70:         // Magic sysctl: "setting" 0.3 to a string name
+(dlv) exit
+didideMacBook-Air-42:exp1 didi$
+
+
+

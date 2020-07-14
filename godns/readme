@@ -1,0 +1,162 @@
+需求：对 DNS 查询进行转发和缓存的本地 DNS 服务器。
+
+补充 1：提供一个记录管理的接口（HTTP handler）。
+
+补充 2：提供一个名字（name）。
+
+DNS 服务器的相关要点如下：
+
+DNS 服务器把域名转换为 IP。
+DNS 主要使用 UDP 协议，其端口为 53。
+DNS 消息的长度最多为 512 字节，若超过这个长度，则必须使用 EDNS。
+需要的组成部分有：
+
+UDP
+DNS 消息解析器（DNS message parser）
+转发
+缓存
+HTTP handler
+我们的解决方案是：
+
+UDP：标准包 net 支持 UDP。
+DNS 消息解析器：需要一些工作，来根据特定协议（UDP）的通信，处理报文。为了更快地实现，我们使用 golang.org/x/net/dns/dnsmessage。
+转发：实现方式有很多，我们使用了 Cloudflare 公共解析器（Cloudflare public resolver）：1.1.1.1。
+缓存：持久性存储。为了持久化写入数据，我们使用标准包 gob 来编码数据。
+HTTP handler：应该能够添加、查询、更新和删除 DNS 记录。不需要使用配置文件。
+开启 UDP socket，监听 53 端口，可以接收 DNS 查询。需要注意的是，UDP 只需要一个 socket 来处理多条“连接”，而 TCP 对于每条连接都需要一个 socket。因此，我们在程序中，会重复使用 conn。
+
+conn, _ = net.ListenUDP("udp", &net.UDPAddr{Port: 53})
+defer conn.Close()
+for {
+    buf := make([]byte, 512)
+    _, addr, _ := conn.ReadFromUDP(buf)
+    ...
+}
+解析报文，检查是否是 DNS 消息。
+
+var m dnsmessage.Message
+err = m.Unpack(buf)
+如果你想知道一条 DNS 消息长什么样，请查看下图：
+
+a DNS message
+
+转发消息到公共解析器
+// re-pack
+packed, err = m.Pack()
+resolver := net.UDPAddr{IP: net.IP{1, 1, 1, 1}, Port: 53}
+_, err = conn.WriteToUDP(packed, &resolver)
+公共解析器会返回一条 anwser，我们会抓取信息，返回给客户端。
+
+if m.Header.Response {
+    packed, err = m.Pack()
+    _, err = conn.WriteToUDP(packed, &addr)
+}
+当然并发使用 conn 很安全，所以 WriteToUDP 应该在 Go 协程中运行。
+
+存储 answer
+我们会使用 map，简单采用“ question-anwser ”的键值对，这会让查询变得很容易。同样不要忘了 RWMutex，对于并发操作，map 使用起来并不安全。需要提醒的是，从理论上讲，在一次 DNS 查询中，可能会有多个 question，但是大多数 DNS 服务器，都只会接收一条 question。
+
+func questionToString(q dnsmessage.Question) string {
+    ...
+}
+type store struct {
+    sync.RWMutex
+    data      map[string][]dnsmessage.Resource
+}
+q := m.Questions[0]
+var s store
+s.Lock()
+s.data[questionToString(q)] = m.Answers
+s.Unlock()
+持久化缓存（persistent cache）
+我们需要把 s.data 写入到文件中，以便以后重新获取它。我们使用了标准包 gob，而无需自定义解析。
+
+f, err := os.Create(filepath.Join("path", "file"))
+enc := Gob.NewEncoder(f)
+err = enc.Encode(s.data)
+需要注意，gob 在编码前需要知道数据类型。
+
+func INIt() {
+    Gob.Register(&dnsmessage.AResource{})
+    ...
+}
+记录管理
+这个相对来说就比较简单了，Create handler 如下所示：
+
+type request struct {
+    Host string
+    TTL  uint32
+    Type string
+    Data string
+}
+func toResource(req request) (dnsmessage.Resource, error) {
+    ...
+}
+// POST handler
+err = JSON.NewDecoder(r.Body).Decode(&req)
+// transform req to a dnsmessage.Resource
+r, err := toResource(req)
+// write r to the store
+
+
+
+https://github.com/owlwalks/rind
+
+
+
+要求：可以转发和缓存DNS查询的本地DNS服务器
+
+额外1：为它提供一个记录管理界面（HTTP处理程序）
+
+额外2：给它起个名字
+
+关于DNS服务器的一些事情：
+
+DNS服务器将名称转换为IP
+DNS主要在端口53上使用UDP协议
+DNS消息最大长度为512字节，更长的必须使用EDNS
+我们需要的成分：
+
+UDP
+DNS消息解析器
+转发
+高速缓存
+HTTP处理程序
+配方：
+
+UDP：支持std net package
+DNS消息解析器：根据特定协议处理来自线路的数据包将需要一些工作，为了快速实现，我们将使用golang.org/x/net/dns/dnsmessage
+转发：除了让我们使用Cloudflare公共解析器1.1.1.1
+缓存：内存和持久性，对于持久性写入，我们将使用std gob包对数据进行编码
+HTTP处理程序：应该创建，读取，更新和删除DNS记录。 无需配置文件。
+打开监听端口53的UDP套接字，这将接收传入的DNS查询。 请注意，UDP只需要1个套接字来处理多个“连接”，同时TCP是每个连接1个套接字。 所以我们将在整个程序中重用conn。
+
+
+解析数据包以查看它是否是DNS消息。
+
+如果你好奇DNS消息是怎样的：
+
+
+向公共解析器转发消息
+
+
+解析器将回复答案，我们将获取该消息并将其提供给客户端
+
+conn对于并发使用也是安全的，所以那些WriteToUDP应该在goroutine中。
+
+记住答案
+
+我们将使用map，只需按问题键入答案，它使查找变得非常容易，也不要忘记RWMutex，映射对于并发使用是不安全的。 请注意，理论上DNS查询中可能存在多个问题，但大多数DNS服务器只接受1个问题。
+
+
+持久缓存
+
+我们需要将s.data写入文件并在以后检索它。 要没有自定义解析，我们将使用std gob
+
+注意gob在编码之前需要知道数据类型：
+
+
+记录管理
+
+这很容易，Create处理程序看起来像这样
+
