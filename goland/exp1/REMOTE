@@ -7,11 +7,11 @@ $dlv connect 10.179.21.231:7008
 Type 'help' for list of commands.
 
 (dlv) b main.hi
-Breakpoint 1 set at 0x660b78 for main.hi() /home/xiaoju/main.go:19
+Breakpoint 1 set at 0x660b78 for main.hi() /home/main.go:19
 (dlv) c
-> main.hi() /home/xiaoju/main.go:19 (hits goroutine(19):1 total:1) (PC: 0x660b78)
+> main.hi() /home/main.go:19 (hits goroutine(19):1 total:1) (PC: 0x660b78)
 (dlv) c
-> main.hi() /home/xiaoju/main.go:19 (hits goroutine(34):1 total:2) (PC: 0x660b78)
+> main.hi() /home/main.go:19 (hits goroutine(34):1 total:2) (PC: 0x660b78)
 (dlv) info
 Command failed: command not available
 (dlv) args

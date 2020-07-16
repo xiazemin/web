@@ -1,0 +1,3 @@
+package: github.com/xiazemin/web/confPush
+import:
+- package: github.com/howeyc/fsnotify
